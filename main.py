@@ -10,10 +10,11 @@ image_save_loc = '~/images/'
 variables = ['ICEFRAC', 'LANDFRAC', 'TREFHT', 'T850', 'CLDLOW', 'CLDTOT', 'TGCLDLWP']
 
 #### Grouping Data ####
-get_CESMLE_data(variables, saveloc=data_save_loc)
-get_CESM2_data(variables, saveloc=data_save_loc)
-get_ERAI_data(variables, saveloc=data_save_loc)
-get_ERA5_data(variables, saveloc=data_save_loc)
+get_data(variables, source='CESMLE', saveloc=data_save_loc)
+get_data(variables, source='CESM2-CAM6', saveloc=data_save_loc)
+get_data(variables, source='CESM2-WACCM', saveloc=data_save_loc)
+get_data(variables, source='ERA-I', saveloc=data_save_loc)
+get_data(variables, source='ERA5', saveloc=data_save_loc)
 
 #### Computations ####
 compute_time_series(variables, dataloc=data_save_loc, saveloc=comp_save_loc)
