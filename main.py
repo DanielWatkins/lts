@@ -10,6 +10,8 @@ image_save_loc = '~/images/'
 variables = ['ICEFRAC', 'LANDFRAC', 'TREFHT', 'T850', 'CLDLOW', 'CLDTOT', 'TGCLDLWP']
 
 #### Grouping Data ####
+# Data for the region and for the time slice are pulled from
+# glade/collections and placed into data_save_loc
 get_data(variables, source='CESMLE', saveloc=data_save_loc)
 get_data(variables, source='CESM2-CAM6', saveloc=data_save_loc)
 get_data(variables, source='CESM2-WACCM', saveloc=data_save_loc)
