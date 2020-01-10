@@ -40,8 +40,8 @@ def varname(name, source):
               'net_surface_longwave': np.nan,
               'net_surface_shortwave': np.nan}
               
-    erai =   {'latitude':
-              'longitude':
+    erai =   {'latitude':np.nan,
+              'longitude':np.nan,
               'sea_ice_concentration': 'CI_GDS4_SFC_S123',
               'total_cloud_cover': 'TCC_GDS4_SFC_S123',
               'low_cloud_fraction': 'LCC_GDS4_SFC_S123',
@@ -51,29 +51,29 @@ def varname(name, source):
               'latent_heat_flux': 'SLHF_GDS4_SFC_120',
               '10m_wind_speed': '10SI_GDS4_SFC_S123',
               'sea_level_pressure': 'MSL_GDS4_SFC_S123',
-              'surface_downward_longwave':
-              'surface_upward_longwave':
-              'surface_downward_shortwave':
-              'surface_upward_shortwave':
+              'surface_downward_longwave':np.nan,
+              'surface_upward_longwave':np.nan,
+              'surface_downward_shortwave':np.nan,
+              'surface_upward_shortwave':np.nan,
               'net_surface_longwave': 'STR_GDS4_SFC_120',
               'net_surface_shortwave': 'SSR_GDS4_SFC_120'}   
               
-    era5 =   {'latitude':
-              'longitude':
-              'sea_ice_concentration':
-              'total_cloud_cover':
-              'low_cloud_fraction':
-              '2m_temperature':
-              'sensible_heat_flux':
-              'latent_heat_flux':
-              '10m_wind_speed':
-              'sea_level_pressure':
-              'surface_downward_longwave':
-              'surface_upward_longwave':
-              'surface_downward_shortwave':
-              'surface_upward_shortwave':
-              'net_surface_longwave':
-              'net_surface_shortwave': }     
+    era5 =   {'latitude':np.nan,
+              'longitude':np.nan,
+              'sea_ice_concentration':np.nan,
+              'total_cloud_cover':np.nan,
+              'low_cloud_fraction':np.nan,
+              '2m_temperature':np.nan,
+              'sensible_heat_flux':np.nan,
+              'latent_heat_flux':np.nan,
+              '10m_wind_speed':np.nan,
+              'sea_level_pressure':np.nan,
+              'surface_downward_longwave':np.nan,
+              'surface_upward_longwave':np.nan,
+              'surface_downward_shortwave':np.nan,
+              'surface_upward_shortwave':np.nan,
+              'net_surface_longwave':np.nan,
+              'net_surface_shortwave':np.nan}     
               
     
 
