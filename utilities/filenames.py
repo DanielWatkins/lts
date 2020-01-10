@@ -69,10 +69,9 @@ def get_cesmle_file_names(ens, variable, freq, domain):
     flist =  [file_loc + '/' + f for f in files]
     flist.sort()
     return flist
-  
-  
-def get_cesm2_file_names(ens, variable, freq, domain):
 
-def get_erai_file_names(variable, freq, domain):
+# def get_cesm2_file_names(ens, variable, freq, domain):
 
-def get_era5_file_names(variable, freq, domain):
+# def get_erai_file_names(variable, freq, domain):
+
+# def get_era5_file_names(variable, freq, domain):
