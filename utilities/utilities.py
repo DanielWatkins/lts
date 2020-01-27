@@ -30,7 +30,6 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
 
         file_loc = '/'.join(['/glade/collections/cdg/data/cesmLE/CESM-CAM5-BGC-LE',
                              domain, 'proc/tseries', freq, variable])
-        print(file_loc)
         if domain=='atm':
             if freq=='daily':
                 fcode = 'h1'
@@ -56,7 +55,48 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
         flist.sort()
         return flist
     
-    
+    def get_cesm2_file_names(variable, freq, **kwargs):
+        """Reads filenames for cesm2 from glade
+        and returns as a master list."""
+
+        # from kwargs
+        if atm_model == 'cam6':
+            model = 'CESM2'
+        elif atm_model == 'waccm':
+            model = 'CESM2-WACCM'
+        
+        
+        assert freq == 'monthly', 'Frequency must be monthly, for now.'
+
+        file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP/NCAR',
+                             atm_model, 'historical'])
+        ensembles = os.listdir(file_loc)
+        
+        print(ensembles)
+        if domain=='atm':
+            if freq=='daily':
+                fcode = 'h1'
+            elif freq == 'monthly':
+                fcode = 'h0'
+        elif domain == 'ice':
+            if freq == 'monthly':
+                fcode = 'h'
+            if freq == 'daily':
+                fcode = 'h1'
+                file_loc += '_d'
+            variable += '_nh'
+
+        ensembles = [str(i).zfill(3) for i in range(1,36)]+[str(i) for i in range(101,108)]
+        flist = os.listdir(file_loc)
+        files = []
+        for ens in ensembles:
+            prefix = ['.'.join(['b.e11.B20TRC5CNBDRD.f09_g16', ens, model, fcode, variable]),
+                  '.'.join(['b.e11.BRCP85C5CNBDRD.f09_g16', ens, model, fcode, variable])]
+            files += [f for f in flist if f.startswith(prefix[0])] 
+            files += [f for f in flist if f.startswith(prefix[1])]
+        flist =  [file_loc + '/' + f for f in files]
+        flist.sort()
+        return flist
     
     
     
@@ -98,7 +138,8 @@ def get_varnames(variable, source, freq):
     
     cesmle = {'latitude': 'LAT',
               'longitude': 'LON',
-              'sea_ice_concentration': 'SIC',
+              'land_mask': 'LANDFRAC',
+              'sea_ice_concentration': 'ICEFRAC',
               'total_cloud_cover': 'TCC',
               'low_cloud_fraction': 'LCC',
               '2m_temperature': 'TREFHT',
@@ -116,6 +157,7 @@ def get_varnames(variable, source, freq):
               
     cmip6 =  {'latitude': 'lat',
               'longitude': 'lon',
+              'land_mask': np.nan,
               'sea_ice_concentration': 'siconca',
               'total_cloud_cover': 'clt',
               'low_cloud_fraction': np.nan,
@@ -134,6 +176,7 @@ def get_varnames(variable, source, freq):
               
     erai =   {'latitude':np.nan,
               'longitude':np.nan,
+              'land_mask': np.nan,
               'sea_ice_concentration': 'CI_GDS4_SFC_S123',
               'total_cloud_cover': 'TCC_GDS4_SFC_S123',
               'low_cloud_fraction': 'LCC_GDS4_SFC_S123',
@@ -152,6 +195,7 @@ def get_varnames(variable, source, freq):
               
     era5 =   {'latitude':np.nan,
               'longitude':np.nan,
+              'land_mask': np.nan,
               'sea_ice_concentration':np.nan,
               'total_cloud_cover':np.nan,
               'low_cloud_fraction':np.nan,
