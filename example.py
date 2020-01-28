@@ -1,13 +1,12 @@
 """Master script to walk through the data analysis."""
-from lts.utilities import *
-from lts.computation import *
+import lts.utilities as util
+import lts.lts as lts
 
 #### Parameters ####
-data_save_loc = '~/data/'
-comp_save_loc = '~/computed/'
-image_save_loc = '~/images/'
+# Create a params object to pass parameters 
+# between different components of the analysis
+params = Parameters('cesm-le')
 
-variables = ['ICEFRAC', 'LANDFRAC', 'TREFHT', 'T850', 'CLDLOW', 'CLDTOT', 'TGCLDLWP']
 
 #### Grouping Data ####
 # Data for the region and for the time slice are pulled from

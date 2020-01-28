@@ -71,6 +71,21 @@ def get_data(params):
     from glade/collections, subset it, and interpolate to
     a pressure level if needed."""
     
+    filenames = params.filenames()
+    
+    if params.lts_type == 't850-t2m':
+        req_vars = ['air_temperature', '2m_temperature',
+                    'sea_ice_concentration']
+        for var in req_vars:
+            if var not in params.variables:
+                params.variables += var
+    else:
+        print('Other definitions of LTS type not supported yet')
+        
+    # Handling ensembles:
+    # Handling data split into multiple files:
+        
+    
     return
     
     

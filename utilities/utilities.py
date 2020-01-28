@@ -26,6 +26,13 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
 
         domain = 'atm' # Can add a step here when other variables become available
         model = 'cam'
+        
+        if variable == 'ICEFRAC':
+            model = 'cice'
+            
+        
+        
+        
         assert freq == 'monthly', 'Frequency must be monthly, for now.'
 
         file_loc = '/'.join(['/glade/collections/cdg/data/cesmLE/CESM-CAM5-BGC-LE',
@@ -43,12 +50,15 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
                 file_loc += '_d'
             variable += '_nh'
 
-        ensembles = [str(i).zfill(3) for i in range(1,36)]+[str(i) for i in range(101,108)]
+        ensembles = [str(i).zfill(3) for i in range(1,36)]+[str(i) 
+                                           for i in range(101,108)]
         flist = os.listdir(file_loc)
         files = []
         for ens in ensembles:
-            prefix = ['.'.join(['b.e11.B20TRC5CNBDRD.f09_g16', ens, model, fcode, variable]),
-                  '.'.join(['b.e11.BRCP85C5CNBDRD.f09_g16', ens, model, fcode, variable])]
+            prefix = ['.'.join(['b.e11.B20TRC5CNBDRD.f09_g16', 
+                                ens, model, fcode, variable]),
+                  '.'.join(['b.e11.BRCP85C5CNBDRD.f09_g16', 
+                            ens, model, fcode, variable])]
             files += [f for f in flist if f.startswith(prefix[0])] 
             files += [f for f in flist if f.startswith(prefix[1])]
         flist =  [file_loc + '/' + f for f in files]
@@ -59,42 +69,33 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
         """Reads filenames for cesm2 from glade
         and returns as a master list."""
 
-        # from kwargs
-        if atm_model == 'cam6':
+        if kwargs['atm_model'] == 'cam6':
             model = 'CESM2'
-        elif atm_model == 'waccm':
+        elif kwargs['atm_model'] == 'waccm':
             model = 'CESM2-WACCM'
-        
         
         assert freq == 'monthly', 'Frequency must be monthly, for now.'
 
+        if variable in ['siconca']:
+            domain = 'ice'
+            dfreq = 'SImon'
+        else:
+            domain = 'atm'
+            dfreq = 'Amon'
+            
         file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP/NCAR',
-                             atm_model, 'historical'])
-        ensembles = os.listdir(file_loc)
-        
-        print(ensembles)
-        if domain=='atm':
-            if freq=='daily':
-                fcode = 'h1'
-            elif freq == 'monthly':
-                fcode = 'h0'
-        elif domain == 'ice':
-            if freq == 'monthly':
-                fcode = 'h'
-            if freq == 'daily':
-                fcode = 'h1'
-                file_loc += '_d'
-            variable += '_nh'
-
-        ensembles = [str(i).zfill(3) for i in range(1,36)]+[str(i) for i in range(101,108)]
-        flist = os.listdir(file_loc)
-        files = []
+                             model, 'historical'])
+        ensembles = os.listdir(file_loc) 
+        flist = []
         for ens in ensembles:
-            prefix = ['.'.join(['b.e11.B20TRC5CNBDRD.f09_g16', ens, model, fcode, variable]),
-                  '.'.join(['b.e11.BRCP85C5CNBDRD.f09_g16', ens, model, fcode, variable])]
-            files += [f for f in flist if f.startswith(prefix[0])] 
-            files += [f for f in flist if f.startswith(prefix[1])]
-        flist =  [file_loc + '/' + f for f in files]
+            floc = '/'.join([file_loc, ens, dfreq,
+                                         variable,'gn','latest'])
+            
+            files = os.listdir(floc)
+            
+            flist += [floc + '/' + f for f in files]# if f.endswith('.nc')]
+            
+
         flist.sort()
         return flist
     
@@ -109,7 +110,7 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
         varname = get_varnames(variable, source, freq)
         return get_cesm2_file_names(varname, freq, atm_model='cam6')
     
-    elif source=='cesm2-cam6':
+    elif source=='cesm2-waccm':
         varname = get_varnames(variable, source, freq)
         return get_cesm2_file_names(varname, freq, atm_model='waccm')
     
@@ -140,8 +141,8 @@ def get_varnames(variable, source, freq):
               'longitude': 'LON',
               'land_mask': 'LANDFRAC',
               'sea_ice_concentration': 'ICEFRAC',
-              'total_cloud_cover': 'TCC',
-              'low_cloud_fraction': 'LCC',
+              'total_cloud_cover': 'CLDTOT',
+              'low_cloud_fraction': 'CLDLOW',
               '2m_temperature': 'TREFHT',
               'air_temperature': 'T',
               'sensible_heat_flux': 'SHFLX',
@@ -153,7 +154,14 @@ def get_varnames(variable, source, freq):
               'surface_downward_shortwave': np.nan,
               'surface_upward_shortwave': np.nan,
               'net_surface_longwave': 'FLNS',
-              'net_surface_shortwave': 'FSNS'}
+              'net_surface_shortwave': 'FSNS',
+              'liquid_water_path': 'TGCLDLWP', 
+              'total_water_path': 'ICLDTWP',
+              'snow_depth_water_equivalent': 'SNOWHICE',
+              'ice area snapshot': 'aisnap',
+              'grid cell mean ice thickness': 'hi',
+              'grid cell mean snow thickness': 'hs'
+             }
               
     cmip6 =  {'latitude': 'lat',
               'longitude': 'lon',
