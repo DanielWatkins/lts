@@ -9,9 +9,13 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 import lts.utilities.utilities as util
-# import lts.utilities.varnames as ltsv
-# import lts.utilities.filenames as ltsf
-# import lts.utilities.util as ltsu
+
+# TODO
+# Set up filenames to pull just first ensemble
+# Set up models method to display all cmip5 and cmip6 model names
+# Check whether naming conventions will work for all ensemble members
+# Set up quantile function for area weighting
+
 
 class Parameters:
     """Bundle of parameters used throughout analysis.
@@ -26,6 +30,8 @@ class Parameters:
     maximum_latitude: Default 90
     minimum_longitude: Default 0
     maximum_longitude: Default 360
+    
+    ensemble_members: 'all', 'first', 'random'
     """
 
     def __init__(self, source):
@@ -58,12 +64,14 @@ class Parameters:
         print('Min longitude: ', self.minimum_longitude)
         
     def filenames(self):
+        # Update to allow only the first ensemble member to be called
         fn_dict = {}
         for varname in self.variables:
             fn_dict[varname] = util.get_filenames(
                 varname,
                 self.source,
-                self.frequency)
+                self.frequency,
+                self.ensemble_members)
         return fn_dict
 
 def get_data(params):
@@ -79,13 +87,45 @@ def get_data(params):
         for var in req_vars:
             if var not in params.variables:
                 params.variables += var
+    elif params.lts_type == 't925-t1000':
+        req_vars = ['air_temperature',
+                    'sea_ice_concentration']
+        for var in req_vars:
+            if var not in params.variables:
+                params.variables += var            
     else:
         print('Other definitions of LTS type not supported yet')
+        
+    
+        
         
     # Handling ensembles:
     # Handling data split into multiple files:
         
     
     return
+    
+def cmip5_list():
+    """Returns a list of all the CMIP5 models available."""
+    
+    return
+
+def cmip6_list():
+    """Returns a list of all the CMIP6 models available."""
+    return
+
+def reanalysis_list():
+    """Returns a list of all the reanalysis models available."""
+    return
+
+
+
+    
+    
+    
+    
+    
+    
+    
     
     
