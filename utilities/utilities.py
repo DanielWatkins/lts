@@ -9,7 +9,7 @@ import numpy as np
 import os
 import pandas as pd
 
-def get_filenames(variable, source, freq='monthly', **kwargs):
+def get_filenames(variable, source, frequency, ensemble_members):
     """Returns list of file names matching the ensemble
     number, variable, and frequency.
     
@@ -20,7 +20,7 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
     ens=string eg '001'
     """
     
-    def get_cesmle_file_names(variable, freq, **kwargs):
+    def get_cesmle_file_names(variable, source, frequency, ensemble_members):
         """Reads filenames for cesm large ensemble from glade
         and returns as a master list."""
 
@@ -65,7 +65,7 @@ def get_filenames(variable, source, freq='monthly', **kwargs):
         flist.sort()
         return flist
     
-    def get_cesm2_file_names(variable, freq, **kwargs):
+    def get_cesm2_file_names(variable, source, frequency, ensemble_members):
         """Reads filenames for cesm2 from glade
         and returns as a master list."""
 
@@ -182,6 +182,25 @@ def get_varnames(variable, source, freq):
               'net_surface_longwave': np.nan,
               'net_surface_shortwave': np.nan}
               
+    cmip5 =  {'latitude': 'lat',
+              'longitude': 'lon',
+              'land_mask': np.nan,
+              'sea_ice_concentration': 'sic',
+              'total_cloud_cover': 'clt',
+              'low_cloud_fraction': np.nan,
+              '2m_temperature': 'tas',
+              'air_temperature': 'ta',
+              'sensible_heat_flux': 'hfls',
+              'latent_heat_flux': 'hfss',
+              '10m_wind_speed': 'sfcWind',
+              'sea_level_pressure': 'psl',
+              'surface_downward_longwave': 'rlds',
+              'surface_upward_longwave': 'rlus',
+              'surface_downward_shortwave': 'rsds',
+              'surface_upward_shortwave': 'rsus',
+              'net_surface_longwave': np.nan,
+              'net_surface_shortwave': np.nan}
+              
     erai =   {'latitude':np.nan,
               'longitude':np.nan,
               'land_mask': np.nan,
@@ -233,3 +252,28 @@ def get_varnames(variable, source, freq):
         return sources[source][variable]
 
 
+    
+def weights(lats, lons, area=True):
+    """Compute area for each lat/lon grid box. Assumes that
+    the polar grid points are offset (so values are centered halfway
+    between 90 and the next highest lat), and the rest of the grid points
+    represent grid centers. (Not sure how this plays with the interp to 1deg.)
+    """
+    import numpy as np
+    dlat = np.diff(lats)[0]/2
+    nlon = len(lons)
+    lats = lats.copy()
+    lats[0] = lats[0] + dlat
+    lats[-1] = lats[-1] - dlat
+    R = 6356 # earth radius in km
+    sin_lat1 = np.sin((lats + dlat) * np.pi / 180.)
+    sin_lat2 = np.sin((lats - dlat) * np.pi / 180.)
+    sin_lat = np.abs(sin_lat1 - sin_lat2)
+    weights = (np.zeros((len(lats), nlon)) + np.array([sin_lat / (np.sum(sin_lat)*nlon)]).T)
+    # Not sure what the np.sum(sin_lat) is for
+    if area:
+        grid_area = R**2 * weights
+        return grid_area
+    else:
+        return weights
+    
