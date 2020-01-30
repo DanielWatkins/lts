@@ -1,7 +1,9 @@
-"""Helper functions to access files via the CESM variable names.
-get_filenames(variable, source, freq): return a full list of file names 
-     that match the specified variable, source, and frequency.
-
+"""Helper functions (as you may have guessed). The 
+main functions here are for generating lists of
+filenames from glade, dealing with different ways of
+organizing the model datasets (such as splitting large
+files into different years), and navigating differing 
+file names.
 
 
 """
@@ -9,34 +11,32 @@ import numpy as np
 import os
 import pandas as pd
 
-def get_filenames(variable, source, frequency, ensemble_members):
-    """Returns list of file names matching the ensemble
-    number, variable, and frequency.
-    
-    variable=variable name in the source data set
-    freq=daily or monthly or 6-hourly
-    domain=atmosphere or ice, probably not used for ERA
-    source=ERAI, ERA5, CESMLE, CESM2-CAM6, CESM2-WACCM
-    ens=string eg '001'
+
+#### Generating Paths to Model and Reanalysis Data ####
+
+
+def get_filenames(variable, params):
+    """Returns list of file names matching spefications in params
+
     """
-    
-    def get_cesmle_file_names(variable, source, frequency, ensemble_members):
+    frequency = params.frequency
+    ensemble_members = params.ensemble_members
+    source = params.source
+    varname = get_varnames(variable, params)
+    def get_cesmle_file_names(varname, params):
         """Reads filenames for cesm large ensemble from glade
         and returns as a master list."""
 
         domain = 'atm' # Can add a step here when other variables become available
         model = 'cam'
         
-        if variable == 'ICEFRAC':
+        if varname == 'ICEFRAC':
             model = 'cice'
-            
-        
-        
-        
+
         assert freq == 'monthly', 'Frequency must be monthly, for now.'
 
         file_loc = '/'.join(['/glade/collections/cdg/data/cesmLE/CESM-CAM5-BGC-LE',
-                             domain, 'proc/tseries', freq, variable])
+                             domain, 'proc/tseries', freq, varname])
         if domain=='atm':
             if freq=='daily':
                 fcode = 'h1'
@@ -48,81 +48,133 @@ def get_filenames(variable, source, frequency, ensemble_members):
             if freq == 'daily':
                 fcode = 'h1'
                 file_loc += '_d'
-            variable += '_nh'
+            varname += '_nh'
 
         ensembles = [str(i).zfill(3) for i in range(1,36)]+[str(i) 
                                            for i in range(101,108)]
+        
+        if ensemble_members == 'first':
+            ensembles = [ensembles[0]]
+        elif ensemble_members == 'random':
+            ensembles = [np.random.choice(ensembles, 1)]
+
+        
         flist = os.listdir(file_loc)
         files = []
         for ens in ensembles:
             prefix = ['.'.join(['b.e11.B20TRC5CNBDRD.f09_g16', 
-                                ens, model, fcode, variable]),
+                                ens, model, fcode, varname]),
                   '.'.join(['b.e11.BRCP85C5CNBDRD.f09_g16', 
-                            ens, model, fcode, variable])]
+                            ens, model, fcode, varname])]
             files += [f for f in flist if f.startswith(prefix[0])] 
             files += [f for f in flist if f.startswith(prefix[1])]
         flist =  [file_loc + '/' + f for f in files]
         flist.sort()
+        
         return flist
     
-    def get_cesm2_file_names(variable, source, frequency, ensemble_members):
-        """Reads filenames for cesm2 from glade
+    def get_cmip6_file_names(varname, params):
+        """Reads filenames for cmip6 from glade
         and returns as a master list."""
-
-        if kwargs['atm_model'] == 'cam6':
-            model = 'CESM2'
-        elif kwargs['atm_model'] == 'waccm':
-            model = 'CESM2-WACCM'
         
-        assert freq == 'monthly', 'Frequency must be monthly, for now.'
+        # To extended to full cmip6, will need reference function here
+        if params.source == 'cesm2-cam6':
+            model_group = 'NCAR'
+            model = 'CESM2'
+        elif params.source == 'cesm2-waccm':
+            model_group = 'NCAR'
+            model = 'CESM2-WACCM'
+        else:
+            print('Need to adapt to full CMIP6 list')
+            
 
-        if variable in ['siconca']:
+  
+        assert params.frequency == 'monthly', 'Frequency must be monthly, for now.'
+
+        if varname in ['siconca']:
             domain = 'ice'
             dfreq = 'SImon'
         else:
             domain = 'atm'
             dfreq = 'Amon'
             
-        file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP/NCAR',
-                             model, 'historical'])
+        file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP/',
+                             model_group, model, 'historical'])
+        
         ensembles = os.listdir(file_loc) 
+        if ensemble_members == 'first':
+            ensembles = [ensembles[0]]
+        elif ensemble_members == 'random':
+            ensembles = [np.random.choice(ensembles, 1)]
+            
         flist = []
         for ens in ensembles:
             floc = '/'.join([file_loc, ens, dfreq,
-                                         variable,'gn','latest'])
+                                         varname,'gn','latest'])
             
             files = os.listdir(floc)
             
             flist += [floc + '/' + f for f in files]# if f.endswith('.nc')]
-            
-
         flist.sort()
         return flist
-    
+
+    def get_cmip5_file_names(varname, params):
+        """Reads filenames for cmip5 from glade
+        and returns as a master list."""
+        
+        # To extended to full cmip6, will need reference function here
+        model_info = cmip5_models()[params.source]
+        model_group = model_info['model_group']
+        model = model_info['model_name']
+
+  
+        assert params.frequency == 'monthly', 'Frequency must be monthly, for now.'
+        freq = 'mon'
+        
+        if varname in ['sic', 'sit']:
+            domain = 'seaIce'
+            dfreq = 'OImon'
+        else:
+            domain = 'atmos'
+            dfreq = 'Amon'
+            
+        file_loc = '/'.join(['/glade/collections/cmip/cmip5/output1',
+                             model_group, model, 'historical', freq, domain, dfreq])
+        
+        
+        ensembles = os.listdir(file_loc) 
+        if ensemble_members == 'first':
+            ensembles = [ensembles[0]]
+        elif ensemble_members == 'random':
+            ensembles = [np.random.choice(ensembles, 1)]
+            
+        flist = []
+        for ens in ensembles:
+            floc = '/'.join([file_loc, ens, 'latest', varname])
+            
+            files = os.listdir(floc)
+            
+            flist += [floc + '/' + f for f in files]# if f.endswith('.nc')]
+        flist.sort()
+        return flist   
     
     
     ###################### MAIN PART ##############################
     if source=='cesm-le':
-        varname = get_varnames(variable, source, freq)
-        return get_cesmle_file_names(varname, freq)
+        return get_cesmle_file_names(varname, params)
     
-    elif source=='cesm2-cam6':
-        varname = get_varnames(variable, source, freq)
-        return get_cesm2_file_names(varname, freq, atm_model='cam6')
-    
-    elif source=='cesm2-waccm':
-        varname = get_varnames(variable, source, freq)
-        return get_cesm2_file_names(varname, freq, atm_model='waccm')
-    
+    elif source in cmip5_models():
+        return get_cmip5_file_names(varname, params)
+        
+    elif source in cmip6_models():
+        return get_cmip6_file_names(varname, params)
+
     elif source=='era-i':
-        varname = get_varnames(variable, source, freq)
-        return get_erai_file_names(varname, freq)
+        return get_erai_file_names(varname, params)
     
     elif source=='era5':
-        varname = get_varnames(variable, source, freq)
-        return get_era5_file_names(varname, freq)
-
-
+        return get_era5_file_names(varname, params)
+    
 
 # def get_cesm2_file_names(ens, variable, freq, domain):
 
@@ -130,11 +182,9 @@ def get_filenames(variable, source, frequency, ensemble_members):
 
 # def get_era5_file_names(variable, freq, domain):
 
-def get_varnames(variable, source, freq):
-    """Given a variable name and a source, provides the name of 
+def get_varnames(variable, params):
+    """Given a variable name and parameters, provides the name of 
     the corresponding variable in the source data if it exists.
-    Including frequency as an input because I think the ERA data
-    are different at different time resolutions sometimes.
     """
     
     cesmle = {'latitude': 'LAT',
@@ -180,7 +230,8 @@ def get_varnames(variable, source, freq):
               'surface_downward_shortwave': 'rsds',
               'surface_upward_shortwave': 'rsus',
               'net_surface_longwave': np.nan,
-              'net_surface_shortwave': np.nan}
+              'net_surface_shortwave': np.nan
+             }
               
     cmip5 =  {'latitude': 'lat',
               'longitude': 'lon',
@@ -218,7 +269,8 @@ def get_varnames(variable, source, freq):
               'surface_downward_shortwave':np.nan,
               'surface_upward_shortwave':np.nan,
               'net_surface_longwave': 'STR_GDS4_SFC_120',
-              'net_surface_shortwave': 'SSR_GDS4_SFC_120'}   
+              'net_surface_shortwave': 'SSR_GDS4_SFC_120'
+             }   
               
     era5 =   {'latitude':np.nan,
               'longitude':np.nan,
@@ -241,9 +293,12 @@ def get_varnames(variable, source, freq):
     sources = {'cesm-le': cesmle,
                'cesm2-cam6': cmip6,
                'cesm2-waccm': cmip6,
+               'cesm1-cam5': cmip5,
+               'cesm1-waccm': cmip5,
                'era-i': erai,
                'era5': era5}
     
+    source = params.source
     if source not in sources.keys():
         print('Source must be one of the following: \n----------------------- \n' + '\n'.join(list(sources.keys())))
     elif variable not in cesmle.keys():
@@ -251,6 +306,21 @@ def get_varnames(variable, source, freq):
     else:
         return sources[source][variable]
 
+    
+    
+def cmip5_models():
+    """Returns a dictionary with shortnames as keys, 
+    and entries for the model group and model name."""
+    
+    return {'cesm1-cam5': {'model_group': 'NSF-DOE-NCAR', 'model_name': 'CESM1-CAM5'},
+            'cesm1-waccm': {'model_group': 'NSF-DOE-NCAR', 'model_name': 'CESM1-WACCM'}}
+
+def cmip6_models():
+    """Returns a dictionary with shortnames as keys, 
+    and entries for the model group and model name."""
+    
+    return {'cesm2-cam6': {'model_group': 'NSF-DOE-NCAR', 'model_name': 'CESM1-CAM5'},
+            'cesm2-waccm': {'model_group': 'NSF-DOE-NCAR', 'model_name': 'CESM1-WACCM'}}
 
     
 def weights(lats, lons, area=True):

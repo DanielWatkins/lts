@@ -64,20 +64,21 @@ class Parameters:
         print('Min longitude: ', self.minimum_longitude)
         
     def filenames(self):
-        # Update to allow only the first ensemble member to be called
         fn_dict = {}
         for varname in self.variables:
             fn_dict[varname] = util.get_filenames(
-                varname,
-                self.source,
-                self.frequency,
-                self.ensemble_members)
+                varname, self)
         return fn_dict
 
 def get_data(params):
     """Based on information in params object, pull data
     from glade/collections, subset it, and interpolate to
-    a pressure level if needed."""
+    a pressure level if needed.
+    
+    Just so I don't go crazy trying to cover every possibility here,
+    get_data is only going to do the subsetting and renaming, and
+    will save data on whatever directory is specified.   
+    """
     
     filenames = params.filenames()
     
@@ -87,22 +88,37 @@ def get_data(params):
         for var in req_vars:
             if var not in params.variables:
                 params.variables += var
+        for plev in [850]:
+            if plev not in params.pressure_levels:
+                params.pressure_levels += var
+                
+    elif params.lts_type == 't850-t1000':
+        req_vars = ['air_temperature',
+                    'sea_ice_concentration']
+        for var in req_vars:
+            if var not in params.variables:
+                params.variables += var
+        for plev in [1000, 850]:
+            if plev not in params.pressure_levels:
+                params.pressure_levels += var
+              
+                
     elif params.lts_type == 't925-t1000':
         req_vars = ['air_temperature',
                     'sea_ice_concentration']
         for var in req_vars:
             if var not in params.variables:
                 params.variables += var            
+        for plev in [1000, 925]:
+            if plev not in params.pressure_levels:
+                params.pressure_levels += var
     else:
         print('Other definitions of LTS type not supported yet')
         
     
-        
-        
-    # Handling ensembles:
-    # Handling data split into multiple files:
-        
-    
+    for variable in params.variables:
+        util.get_variable_data(variable, params)
+
     return
     
 def cmip5_list():
