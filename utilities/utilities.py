@@ -346,4 +346,22 @@ def weights(lats, lons, area=True):
         return grid_area
     else:
         return weights
+def make_tempfile(variable, params):
+    """make a temporary file for regridder to read. Requires
+    2m_temperature to be used as the ref file. Currently expects
+    the lat/lon to be 'lat' and 'lon' respectively. Keeps the file
+    name except adds _interpolated.nc at the end."""
     
+    varname = get_varnames(variable, params)
+    fnames = params.filenames()
+    reffile = fnames['2m_temperature'][0]
+    tarfiles = fnames[variable]
+    saveloc = params.save_location
+    min_lat = params.minimum_latitude
+    info = [saveloc, reffile, varname, min_lat] + tarfiles
+    names = ['save_location','reference', 
+             'varname', 'minimum_latitude'] + ['target' 
+                               for i in range(len(tarfiles))]
+    
+    df = pd.DataFrame({'name':names, 'info':info})
+    df.to_csv('data_for_gridding.tmp', index=False)
