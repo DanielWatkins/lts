@@ -91,7 +91,7 @@ def get_filenames(variable, params):
   
         assert params.frequency == 'monthly', 'Frequency must be monthly, for now.'
 
-        if varname in ['siconca']:
+        if varname in ['siconca', 'sithick']:
             domain = 'ice'
             dfreq = 'SImon'
         else:
@@ -191,6 +191,7 @@ def get_varnames(variable, params):
               'longitude': 'LON',
               'land_mask': 'LANDFRAC',
               'sea_ice_concentration': 'ICEFRAC',
+              'sea_ice_thickness': np.nan,
               'total_cloud_cover': 'CLDTOT',
               'low_cloud_fraction': 'CLDLOW',
               '2m_temperature': 'TREFHT',
@@ -217,6 +218,7 @@ def get_varnames(variable, params):
               'longitude': 'lon',
               'land_mask': np.nan,
               'sea_ice_concentration': 'siconca',
+              'sea_ice_thickness': 'sithick',
               'total_cloud_cover': 'clt',
               'low_cloud_fraction': np.nan,
               '2m_temperature': 'tas',
@@ -237,6 +239,7 @@ def get_varnames(variable, params):
               'longitude': 'lon',
               'land_mask': np.nan,
               'sea_ice_concentration': 'sic',
+              'sea_ice_thickness': 'sit',
               'total_cloud_cover': 'clt',
               'low_cloud_fraction': np.nan,
               '2m_temperature': 'tas',
@@ -328,6 +331,9 @@ def weights(lats, lons, area=True):
     the polar grid points are offset (so values are centered halfway
     between 90 and the next highest lat), and the rest of the grid points
     represent grid centers. (Not sure how this plays with the interp to 1deg.)
+    
+    
+    
     """
     import numpy as np
     dlat = np.diff(lats)[0]/2
@@ -346,6 +352,7 @@ def weights(lats, lons, area=True):
         return grid_area
     else:
         return weights
+    
 def make_tempfile(variable, params):
     """make a temporary file for regridder to read. Requires
     2m_temperature to be used as the ref file. Currently expects
