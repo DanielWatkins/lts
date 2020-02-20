@@ -1,24 +1,29 @@
 # lts
-Code for analyzing lower tropospheric stability. This package provides the code required to reproduce the results of my paper. It is set up on the assumption that the code will be run on NCAR'S Cheyenne computer.
+Code for analyzing lower tropospheric stability on the NCAR supercomputing system. It provides tools to access datasets stored on glade, and requires that the user be running code on a computer with access to glade. This package provides the code required to reproduce the results of my paper. 
 
 Data used:
-* CESM Large Ensemble (CESM1-CAM5)
+* CESM1-CAM5
+* CESM1-WACCM
 * CESM2-CAM6
 * CESM2-WACCM
+
+Planned
 * ERA-Interim
 * ERA5
+* CESM Large Ensemble
 
-## Components
-# Data preparation
-Data access is through the Glade server via the `collections` and `rda` directories. Filenames, variable names, and data types vary by data source. I use the variable names from the Community Earth System Model as the starting point, and use helper functions internally to translate into the names used in each source. 
+# Usage
+The first step is to create a Parameters object for each of the configurations desired. The Parameters object is passed around to various parts of the code, and keeps track of begin/end times, source dataset, lat/lon subsets, and variables needed.
 
-`get_filenames`
+Next, by calling get_data(), datasets are read from glade, subsetted, and saved locally. 
 
-# Analysis
-I focus on the relationships between lower tropospheric stability, sea ice, and low-level clouds. 
+## To Do
+Within get_data or load_data, I want lts to get computed. 
+There could also be an option to warn if overwriting existing data.
+I need to test all the variable options.
 
-`taylor_diagrams`  
-`monthly_distributions`  
-`internal_variability`  
-`interannual_variability`  
-
+Next steps: 
+- build a function to load locally saved data
+- make sure I can load in the cloud data
+- make functions for histograms and timeseries analysis
+- make sure all the 4 datasets can load
