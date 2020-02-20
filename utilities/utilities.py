@@ -98,7 +98,7 @@ def get_filenames(variable, params):
             domain = 'atm'
             dfreq = 'Amon'
             
-        file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP/',
+        file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP',
                              model_group, model, 'historical'])
         
         ensembles = os.listdir(file_loc) 
@@ -372,3 +372,88 @@ def make_tempfile(variable, params):
     
     df = pd.DataFrame({'name':names, 'info':info})
     df.to_csv('data_for_gridding.tmp', index=False)
+    
+def load_dataset(variable, params, subset_time=True, subset_latlon=True):
+    """Loads dataset for <variable> based on time and lat/lon subsets from params.
+    Currently can only subset latlon if the grid is rectilinear. Returns dictionary with 
+    a key for each ensemble member.
+    
+    Todo: To avoid duplicating coordinates, a new dataset is created with truncated lat lon values
+    (4 decimal places). 
+    """
+    import warnings 
+    import xarray as xr
+    
+    
+    def ensemble_finder(fname):
+        """Pulls out the ensemble from the file name"""
+        components = fname.split('/')[-1].split('_')
+        for comp in components:
+            if comp[0] == 'r':
+                return comp
+        
+    def check_dates(fname, params):
+        """Checks dates, assuming that the time range is given right before the .nc.
+        Only takes year into account"""
+        daterng = fname.split('_')[-1].split('.')[0].split('-')
+        begin = int(daterng[0][0:4])
+        end = int(daterng[1][0:4])
+        begin_p = int(params.begin_time[0:4])
+        end_p = int(params.end_time[0:4])
+
+        if (begin <= begin_p ) & (end >= begin_p):
+
+            return True
+        elif (begin >= begin_p) & (begin <= end_p):
+            return True
+        else:
+            return False
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        fnames = params.filenames()[variable]
+        ensembles = [ensemble_finder(f) for f in fnames]
+        fn_dict = {}
+        if params.ensemble_members == 'first':
+            ens = ensembles[1]
+            fnames = [f for f in fnames if (ensemble_finder(f)==ens) and check_dates(f, params)]
+            fn_dict[ens] = fnames
+        elif params.ensemble_members == 'all':
+            for ens in ensembles:
+                fnames_ens = [f for f in fnames if (ensemble_finder(f)==ens) and check_dates(f, params)]
+                fn_dict[ens] = fnames_ens
+        # later: random option?
+        else:
+            print('Bad selection of ensembles. Must be either first or all.')
+            return
+        # todo:
+        # group fnames by ensemble
+        # loop through each group
+        #return(fnames, ensembles)
+
+        ds_dict = {}
+        for ens in fn_dict:
+            ds_list = []
+            for fname in fn_dict[ens]:
+                dsx = xr.open_dataset(fname)
+                
+                if subset_time and subset_latlon:
+                    ds = dsx.sel(
+                            time=slice(params.begin_time, params.end_time),
+                            lat=slice(params.minimum_latitude, params.maximum_latitude),
+                            lon=slice(params.minimum_longitude, params.maximum_longitude))
+                    ds.load()
+                elif subset_time:
+                    ds = dsx.sel(
+                            time=slice(params.begin_time, params.end_time))
+                    ds.load()
+                elif subset_latlon:
+                    ds = dsx.sel(
+                            lat=slice(params.minimum_latitude, params.maximum_latitude),
+                            lon=slice(params.minimum_longitude, params.maximum_longitude))
+                    ds.load()
+                ds_list.append(ds)
+                dsx.close()
+                del ds
+            ds_dict[ens] = xr.concat(ds_list, dim='time')
+        return ds_dict

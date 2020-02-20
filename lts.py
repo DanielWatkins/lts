@@ -50,18 +50,19 @@ class Parameters:
         self.maximum_longitude = 360
         
     def display(self):
-        print('Source: ', self.source)
-        print('LTS Type: ', self.lts_type)
-        print('Save location: ', self.save_location)
-        print('Begin time: ', self.begin_time)
-        print('End time: ', self.end_time)
-        print('Variables: ', self.variables)
-        print('Ensemble members: ', self.ensemble_members)
-        print('Frequency: ', self.frequency)
-        print('Max latitude: ', self.minimum_latitude)
-        print('Min latitude: ', self.maximum_latitude)
-        print('Max longitude: ', self.maximum_longitude)
-        print('Min longitude: ', self.minimum_longitude)
+        print('source: ', self.source)
+        print('lts_type: ', self.lts_type)
+        print('save_location: ', self.save_location)
+        print('begin_time: ', self.begin_time)
+        print('end_time: ', self.end_time)
+        print('variables: ', self.variables)
+        print('pressure_levels: ', self.pressure_levels)
+        print('ensemble_members: ', self.ensemble_members)
+        print('frequency: ', self.frequency)
+        print('maximum_latitude: ', self.minimum_latitude)
+        print('minimum_latitude: ', self.maximum_latitude)
+        print('maximum_longitude: ', self.maximum_longitude)
+        print('minimum_longitude: ', self.minimum_longitude)
         
     def filenames(self):
         fn_dict = {}
@@ -70,55 +71,61 @@ class Parameters:
                 varname, self)
         return fn_dict
 
+
 def get_data(params):
-    """Based on information in params object, pull data
-    from glade/collections, subset it, and interpolate to
-    a pressure level if needed.
-    
-    Just so I don't go crazy trying to cover every possibility here,
-    get_data is only going to do the subsetting and renaming, and
-    will save data on whatever directory is specified.   
+    """Wrapper for load_dataset. Checks to see if required variables
+    are included based on the desired lts_type.
     """
     
     filenames = params.filenames()
     
     if params.lts_type == 't850-t2m':
-        req_vars = ['air_temperature', '2m_temperature',
-                    'sea_ice_concentration']
+        req_vars = ['air_temperature', '2m_temperature']
         for var in req_vars:
             if var not in params.variables:
-                params.variables += var
+                params.variables.append(var)
         for plev in [850]:
             if plev not in params.pressure_levels:
-                params.pressure_levels += var
+                params.pressure_levels.append(var)
                 
     elif params.lts_type == 't850-t1000':
-        req_vars = ['air_temperature',
-                    'sea_ice_concentration']
+        req_vars = ['air_temperature']
         for var in req_vars:
             if var not in params.variables:
-                params.variables += var
+                params.variables.append(var)
         for plev in [1000, 850]:
             if plev not in params.pressure_levels:
-                params.pressure_levels += var
+                params.pressure_levels.append(var)
               
                 
     elif params.lts_type == 't925-t1000':
-        req_vars = ['air_temperature',
-                    'sea_ice_concentration']
+        req_vars = ['air_temperature']
         for var in req_vars:
             if var not in params.variables:
-                params.variables += var            
+                params.variables.append(var)
         for plev in [1000, 925]:
             if plev not in params.pressure_levels:
-                params.pressure_levels += var
+                params.pressure_levels.append(var)
     else:
         print('Other definitions of LTS type not supported yet')
         
+        
     
     for variable in params.variables:
-        util.get_variable_data(variable, params)
+        print('Loading variable ' + variable)
+        if variable in ['sea_ice_concentration', 'sea_ice_thickness']:
+            subset_latlon=False
+        else:
+            subset_latlon=True
 
+        ds_dict = util.load_dataset(variable, params, subset_latlon=subset_latlon)
+        
+        # either here or within load_dataset, remake dataset to have matching names
+        
+        for ens in ds_dict:
+            ds_dict[ens].to_netcdf(
+                params.save_location + params.source + '_' + ens + '_' + variable + '.nc')
+        del ds_dict
     return
     
 def cmip5_list():
