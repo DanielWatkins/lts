@@ -15,6 +15,31 @@ Planned
 # Usage
 The first step is to create a Parameters object for each of the configurations desired. The Parameters object is passed around to various parts of the code, and keeps track of begin/end times, source dataset, lat/lon subsets, and variables needed.
 
+````
+source = 'cesm1-cam5' # or cesm1-waccm, cesm2-cam6, cesm2-waccm
+
+params = lts.Parameters(source)
+````
+
+To see which variables are available, you can use the method `params.list_available_variables()`. (not yet implemented)
+You can see the currently selected parameters by calling 
+`params.display()`.
+Choose a save location large enough to store the subsetted data. I made directories
+for each of the sources, so I use
+`params.save_location = '/glade/scratch/dwatkins/' + params1.source + '/'`
+
+The variables parameter must be a list, and has the near-natural-language names of variables in it. 
+`params.variables = ['air_temperature',
+                     '2m_temperature',
+                     'surface_downward_longwave',
+                     'eastward_wind',
+                     'northward_wind',
+                     'condensed_ice_path',
+                     'condensed_water_path',
+                     'sensible_heat_flux',
+                     'sea_level_pressure']
+                     `
+
 Next, by calling get_data(), datasets are read from glade, subsetted, and saved locally. 
 
 ## To Do

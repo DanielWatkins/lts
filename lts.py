@@ -50,27 +50,21 @@ class Parameters:
         self.maximum_longitude = 360
         
     def display(self):
-        print('source: ', self.source)
-        print('lts_type: ', self.lts_type)
-        print('save_location: ', self.save_location)
-        print('begin_time: ', self.begin_time)
-        print('end_time: ', self.end_time)
-        print('variables: ', self.variables)
-        print('pressure_levels: ', self.pressure_levels)
-        print('ensemble_members: ', self.ensemble_members)
-        print('frequency: ', self.frequency)
-        print('maximum_latitude: ', self.minimum_latitude)
-        print('minimum_latitude: ', self.maximum_latitude)
-        print('maximum_longitude: ', self.maximum_longitude)
-        print('minimum_longitude: ', self.minimum_longitude)
+        for x in self.__dict__:
+            print(x + ':', self.__dict__[x])
         
     def filenames(self):
+        """Returns a dictionary with keys for each variable, and
+        a each entry is a list of the matching files on glade."""
         fn_dict = {}
         for varname in self.variables:
             fn_dict[varname] = util.get_filenames(
                 varname, self)
         return fn_dict
-
+    
+    def list_available_variables(self):
+        
+        return
 
 def get_data(params):
     """Wrapper for load_dataset. Checks to see if required variables
@@ -123,6 +117,12 @@ def get_data(params):
         # either here or within load_dataset, remake dataset to have matching names
         
         for ens in ds_dict:
+            
+            if variable in ['air_temperature', 'eastward_wind', 'northward_wind']:
+                for plevel in params.pressure_levels:
+                    ds_dict[ens].sel(plev=plevel*100).to_netcdf(
+                params.save_location + params.source + '_' + ens + '_' + variable + '_' + str(plevel) + '.nc')
+            
             ds_dict[ens].to_netcdf(
                 params.save_location + params.source + '_' + ens + '_' + variable + '.nc')
         del ds_dict

@@ -235,25 +235,41 @@ def get_varnames(variable, params):
               'net_surface_shortwave': np.nan
              }
               
-    cmip5 =  {'latitude': 'lat',
-              'longitude': 'lon',
-              'land_mask': np.nan,
-              'sea_ice_concentration': 'sic',
-              'sea_ice_thickness': 'sit',
-              'total_cloud_cover': 'clt',
-              'low_cloud_fraction': np.nan,
+    cmip5 =  {'10m_wind_speed': 'sfcWind',
               '2m_temperature': 'tas',
               'air_temperature': 'ta',
-              'sensible_heat_flux': 'hfls',
+              'condensed_ice_path': 'clivi',
+              'condensed_water_path': 'clwvi',
+              'eastward_wind': 'ua',
+              'ice_water_path': 'wlivi',
+              'land_mask': np.nan,
               'latent_heat_flux': 'hfss',
-              '10m_wind_speed': 'sfcWind',
-              'sea_level_pressure': 'psl',
-              'surface_downward_longwave': 'rlds',
-              'surface_upward_longwave': 'rlus',
-              'surface_downward_shortwave': 'rsds',
-              'surface_upward_shortwave': 'rsus',
+              'latitude': 'lat',
+              'longitude': 'lon',
+              'low_cloud_fraction': np.nan,
+              'mass_fraction_cloud_ice': 'cli',
+              'mass_fraction_cloud_liquid': 'clw',
               'net_surface_longwave': np.nan,
-              'net_surface_shortwave': np.nan}
+              'net_surface_shortwave': np.nan,
+              'northward_wind': 'va',
+              'precipitable_water': 'pwr',
+              'relative_humidity': 'hur',
+              'sea_ice_concentration': 'sic',
+              'sea_ice_thickness': 'sit',
+              'sea_level_pressure': 'psl',
+              'sensible_heat_flux': 'hfls',
+              'specific_humidity': 'hus',
+              'surface_downward_longwave': 'rlds',
+              'surface_downward_shortwave': 'rsds',
+              'surface_pressure': 'ps',
+              'surface_relative_humidity': 'hurs',
+              'surface_specific_humidity': 'huss',
+              'surface_upward_longwave': 'rlus',
+              'surface_upward_shortwave': 'rsus',
+              'toa_longwave_all_sky': 'rlut',
+              'toa_longwave_clear_sky': 'rlutcs',
+              'total_cloud_cover': 'clt',
+              'vertical_velocity': 'wap'}
               
     erai =   {'latitude':np.nan,
               'longitude':np.nan,
@@ -304,8 +320,8 @@ def get_varnames(variable, params):
     source = params.source
     if source not in sources.keys():
         print('Source must be one of the following: \n----------------------- \n' + '\n'.join(list(sources.keys())))
-    elif variable not in cesmle.keys():
-        print('Variable must be one of the following: \n----------------------- \n'  + '\n'.join(list(cesmle.keys())))
+    elif variable not in sources[source].keys():
+        print('Variable must be one of the following: \n----------------------- \n'  + '\n'.join(list(sources[source].keys())))
     else:
         return sources[source][variable]
 
@@ -359,6 +375,9 @@ def make_tempfile(variable, params):
     the lat/lon to be 'lat' and 'lon' respectively. Keeps the file
     name except adds _interpolated.nc at the end."""
     
+    
+    # TODO: add save_name to the thing, so that the naming convention is followed.
+    
     varname = get_varnames(variable, params)
     fnames = params.filenames()
     reffile = fnames['2m_temperature'][0]
@@ -390,7 +409,8 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
         components = fname.split('/')[-1].split('_')
         for comp in components:
             if comp[0] == 'r':
-                return comp
+                if comp[1].isdigit():
+                    return comp
         
     def check_dates(fname, params):
         """Checks dates, assuming that the time range is given right before the .nc.
@@ -415,7 +435,11 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
         ensembles = [ensemble_finder(f) for f in fnames]
         fn_dict = {}
         if params.ensemble_members == 'first':
-            ens = ensembles[1]
+            ens = ensembles[0]
+#             if len(ensembles) > 1:
+#                 ens = ensembles[0]
+#             else:
+#                 ens = ensembles[0]
             fnames = [f for f in fnames if (ensemble_finder(f)==ens) and check_dates(f, params)]
             fn_dict[ens] = fnames
         elif params.ensemble_members == 'all':
@@ -457,3 +481,6 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
                 del ds
             ds_dict[ens] = xr.concat(ds_list, dim='time')
         return ds_dict
+    
+
+

@@ -5,6 +5,9 @@ text files are probably the way to go for now.
 Depending on workflow, could make a commandline function with argparse.
 """
 
+# TODO: see if it works to reshape and make a new dataset for cases where there
+# are missing lat/lons
+
 import numpy as np
 import xarray as xr
 import xesmf as xe
