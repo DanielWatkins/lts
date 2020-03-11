@@ -19,7 +19,7 @@ import lts.utilities.utilities as util
 
 class Parameters:
     """Bundle of parameters used throughout analysis.
-    source: One of 'cesm-le' (default), 'cesm2-cam6', 'cesm2-waccm', 'era-i', 'era5'.
+    source: One of 'cesm-le', 'cesm2-cam6', 'cesm2-waccm', 'era-i', 'era5'.
     lts_type: One of 't850-t2m' (default), 't925-t2m', 't850-t1000'.
     save_location: String, ending with /, default '~/data/'.
     begin_time: Start date for subsetting. Default '1979-01-01'.
@@ -62,9 +62,48 @@ class Parameters:
                 varname, self)
         return fn_dict
     
+    def ensembles(self):
+        """Returns a list of the ensemble members available for source."""
+        fnames = self.filenames()
+        for key in fnames:
+            break
+        fnames = fnames[key]
+        
+        def ensemble_finder(fname):
+            """Pulls out the ensemble from the file name"""
+            components = fname.split('/')[-1].split('_')
+            for comp in components:
+                if comp[0] == 'r':
+                    if comp[1].isdigit():
+                        return comp
+        return list(np.unique([ensemble_finder(f) for f in fnames]))
+        
+        
+        
+#### TO DO ######
+    
     def list_available_variables(self):
+        """Returns a list of available variables for the source"""
         
         return
+    
+    def copy():
+        """Fully copies parameters object"""
+        return
+    
+    def cmip5_list():
+        """Returns a list of all the CMIP5 models available."""
+    
+        return
+
+    def cmip6_list():
+        """Returns a list of all the CMIP6 models available."""
+        return
+
+    def reanalysis_list():
+        """Returns a list of all the reanalysis models available."""
+        return
+
 
 def get_data(params):
     """Wrapper for load_dataset. Checks to see if required variables
@@ -73,35 +112,35 @@ def get_data(params):
     
     filenames = params.filenames()
     
-    if params.lts_type == 't850-t2m':
-        req_vars = ['air_temperature', '2m_temperature']
-        for var in req_vars:
-            if var not in params.variables:
-                params.variables.append(var)
-        for plev in [850]:
-            if plev not in params.pressure_levels:
-                params.pressure_levels.append(var)
-                
-    elif params.lts_type == 't850-t1000':
-        req_vars = ['air_temperature']
-        for var in req_vars:
-            if var not in params.variables:
-                params.variables.append(var)
-        for plev in [1000, 850]:
-            if plev not in params.pressure_levels:
-                params.pressure_levels.append(var)
-              
-                
-    elif params.lts_type == 't925-t1000':
-        req_vars = ['air_temperature']
-        for var in req_vars:
-            if var not in params.variables:
-                params.variables.append(var)
-        for plev in [1000, 925]:
-            if plev not in params.pressure_levels:
-                params.pressure_levels.append(var)
-    else:
-        print('Other definitions of LTS type not supported yet')
+#    if params.lts_type == 't850-t2m':
+#        req_vars = ['air_temperature', '2m_temperature']
+#        for var in req_vars:
+#            if var not in params.variables:
+#                params.variables.append(var)
+#        for plev in [850]:
+#            if plev not in params.pressure_levels:
+#                params.pressure_levels.append(var)
+#                
+#    elif params.lts_type == 't850-t1000':
+#        req_vars = ['air_temperature']
+#        for var in req_vars:
+#            if var not in params.variables:
+#                params.variables.append(var)
+#        for plev in [1000, 850]:
+#            if plev not in params.pressure_levels:
+#                params.pressure_levels.append(var)
+#              
+#                
+#    elif params.lts_type == 't925-t1000':
+#        req_vars = ['air_temperature']
+#        for var in req_vars:
+#            if var not in params.variables:
+#                params.variables.append(var)
+#        for plev in [1000, 925]:
+#            if plev not in params.pressure_levels:
+#                params.pressure_levels.append(var)
+#    else:
+#        print('Other definitions of LTS type not supported yet')
         
         
     
@@ -120,30 +159,28 @@ def get_data(params):
             
             if variable in ['air_temperature', 'eastward_wind', 'northward_wind']:
                 for plevel in params.pressure_levels:
-                    ds_dict[ens].sel(plev=plevel*100).to_netcdf(
-                params.save_location + params.source + '_' + ens + '_' + variable + '_' + str(plevel) + '.nc')
-            
-            ds_dict[ens].to_netcdf(
-                params.save_location + params.source + '_' + ens + '_' + variable + '.nc')
+                    fn = '_'.join([params.source, ens, variable, str(plevel)])
+                    ds = ds_dict[ens].sel(plevel=plevel*100).drop('plevel')
+                    ds = ds.sortby(ds.time)
+                    ds.to_netcdf(
+                params.save_location + fn + '.nc')
+            else:        
+                fn = '_'.join([params.source, ens, variable])
+                ds = ds_dict[ens].sortby(ds_dict[ens].time)
+                ds.to_netcdf(
+                    params.save_location + fn + '.nc')
         del ds_dict
     return
     
-def cmip5_list():
-    """Returns a list of all the CMIP5 models available."""
-    
-    return
 
-def cmip6_list():
-    """Returns a list of all the CMIP6 models available."""
-    return
-
-def reanalysis_list():
-    """Returns a list of all the reanalysis models available."""
-    return
-
-
-
-    
+def load_data(variable, params, plevel=None):
+    """Imports downloaded data into workspace."""
+    ddict = {}
+    for ensemble in params.ensembles():
+        fname = util.filename_loaded(variable, params, ensemble, plevel)
+        with xr.open_dataset(fname) as ds:
+            ddict[ensemble] = ds
+    return ddict
     
     
     

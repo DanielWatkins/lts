@@ -5,7 +5,6 @@ organizing the model datasets (such as splitting large
 files into different years), and navigating differing 
 file names.
 
-
 """
 import numpy as np
 import os
@@ -92,10 +91,10 @@ def get_filenames(variable, params):
         assert params.frequency == 'monthly', 'Frequency must be monthly, for now.'
 
         if varname in ['siconca', 'sithick']:
-            domain = 'ice'
             dfreq = 'SImon'
+        elif varname in ['sftlf']:
+            dfreq = 'fx'
         else:
-            domain = 'atm'
             dfreq = 'Amon'
             
         file_loc = '/'.join(['/glade/collections/cmip/CMIP6/CMIP',
@@ -131,7 +130,11 @@ def get_filenames(variable, params):
         assert params.frequency == 'monthly', 'Frequency must be monthly, for now.'
         freq = 'mon'
         
-        if varname in ['sic', 'sit']:
+        if varname == 'sftlf':
+            freq = 'fx'
+            domain = 'atmos'
+            dfreq = 'fx'
+        elif varname in ['sic', 'sit']:
             domain = 'seaIce'
             dfreq = 'OImon'
         else:
@@ -191,7 +194,7 @@ def get_varnames(variable, params):
               'longitude': 'LON',
               'land_mask': 'LANDFRAC',
               'sea_ice_concentration': 'ICEFRAC',
-              'sea_ice_thickness': np.nan,
+              'sea_ice_thickness': 'SIT',
               'total_cloud_cover': 'CLDTOT',
               'low_cloud_fraction': 'CLDLOW',
               '2m_temperature': 'TREFHT',
@@ -214,35 +217,15 @@ def get_varnames(variable, params):
               'grid cell mean snow thickness': 'hs'
              }
               
-    cmip6 =  {'latitude': 'lat',
-              'longitude': 'lon',
-              'land_mask': np.nan,
-              'sea_ice_concentration': 'siconca',
-              'sea_ice_thickness': 'sithick',
-              'total_cloud_cover': 'clt',
-              'low_cloud_fraction': np.nan,
-              '2m_temperature': 'tas',
-              'air_temperature': 'ta',
-              'sensible_heat_flux': 'hfls',
-              'latent_heat_flux': 'hfss',
-              '10m_wind_speed': 'sfcWind',
-              'sea_level_pressure': 'psl',
-              'surface_downward_longwave': 'rlds',
-              'surface_upward_longwave': 'rlus',
-              'surface_downward_shortwave': 'rsds',
-              'surface_upward_shortwave': 'rsus',
-              'net_surface_longwave': np.nan,
-              'net_surface_shortwave': np.nan
-             }
-              
-    cmip5 =  {'10m_wind_speed': 'sfcWind',
+
+    cmip6 =  {'10m_wind_speed': 'sfcWind',
               '2m_temperature': 'tas',
               'air_temperature': 'ta',
               'condensed_ice_path': 'clivi',
               'condensed_water_path': 'clwvi',
               'eastward_wind': 'ua',
               'ice_water_path': 'wlivi',
-              'land_mask': np.nan,
+              'land_area_fraction': 'sftlf',
               'latent_heat_flux': 'hfss',
               'latitude': 'lat',
               'longitude': 'lon',
@@ -253,6 +236,44 @@ def get_varnames(variable, params):
               'net_surface_shortwave': np.nan,
               'northward_wind': 'va',
               'precipitable_water': 'pwr',
+              'pressure_level': 'plev',
+              'relative_humidity': 'hur',
+              'sea_ice_concentration': 'siconca',
+              'sea_ice_thickness': 'sithick',
+              'sea_level_pressure': 'psl',
+              'sensible_heat_flux': 'hfls',
+              'specific_humidity': 'hus',
+              'surface_downward_longwave': 'rlds',
+              'surface_downward_shortwave': 'rsds',
+              'surface_pressure': 'ps',
+              'surface_relative_humidity': 'hurs',
+              'surface_specific_humidity': 'huss',
+              'surface_upward_longwave': 'rlus',
+              'surface_upward_shortwave': 'rsus',
+              'toa_longwave_all_sky': 'rlut',
+              'toa_longwave_clear_sky': 'rlutcs',
+              'total_cloud_cover': 'clt',
+              'vertical_velocity': 'wap'}
+    
+    cmip5 =  {'10m_wind_speed': 'sfcWind',
+              '2m_temperature': 'tas',
+              'air_temperature': 'ta',
+              'condensed_ice_path': 'clivi',
+              'condensed_water_path': 'clwvi',
+              'eastward_wind': 'ua',
+              'ice_water_path': 'wlivi',
+              'land_area_fraction': 'sftlf',
+              'latent_heat_flux': 'hfss',
+              'latitude': 'lat',
+              'longitude': 'lon',
+              'low_cloud_fraction': np.nan,
+              'mass_fraction_cloud_ice': 'cli',
+              'mass_fraction_cloud_liquid': 'clw',
+              'net_surface_longwave': np.nan,
+              'net_surface_shortwave': np.nan,
+              'northward_wind': 'va',
+              'precipitable_water': 'pwr',
+              'pressure_level': 'plev',
               'relative_humidity': 'hur',
               'sea_ice_concentration': 'sic',
               'sea_ice_thickness': 'sit',
@@ -381,13 +402,18 @@ def make_tempfile(variable, params):
     varname = get_varnames(variable, params)
     fnames = params.filenames()
     reffile = fnames['2m_temperature'][0]
-    tarfiles = fnames[variable]
+    targfiles = fnames[variable]
     saveloc = params.save_location
     min_lat = params.minimum_latitude
-    info = [saveloc, reffile, varname, min_lat] + tarfiles
-    names = ['save_location','reference', 
-             'varname', 'minimum_latitude'] + ['target' 
-                               for i in range(len(tarfiles))]
+    begin_time = params.begin_time
+    end_time = params.end_time
+    source = params.source
+    info = [source, variable, saveloc, reffile, varname, min_lat, 
+            begin_time, end_time] + targfiles
+    names = ['source', 'variable', 'save_location','reference', 
+             'varname', 'minimum_latitude',
+            'begin_time', 'end_time'] + ['target' 
+                               for i in range(len(targfiles))]
     
     df = pd.DataFrame({'name':names, 'info':info})
     df.to_csv('data_for_gridding.tmp', index=False)
@@ -402,7 +428,7 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
     """
     import warnings 
     import xarray as xr
-    
+    import pandas as pd
     
     def ensemble_finder(fname):
         """Pulls out the ensemble from the file name"""
@@ -459,7 +485,7 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
         for ens in fn_dict:
             ds_list = []
             for fname in fn_dict[ens]:
-                dsx = xr.open_dataset(fname)
+                dsx = clean_dataset(xr.open_dataset(fname), variable, params)
                 
                 if subset_time and subset_latlon:
                     ds = dsx.sel(
@@ -478,9 +504,67 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
                     ds.load()
                 ds_list.append(ds)
                 dsx.close()
+                if len(ds.time) == len(pd.date_range(params.begin_time, params.end_time, freq='1MS')):
+                    break
+                    del ds
                 del ds
             ds_dict[ens] = xr.concat(ds_list, dim='time')
         return ds_dict
     
 
+def clean_dataset(ds, variable, params):
+    """Ensures that the dataset has time series, lat/lon values, etc that
+    will play well with others: i.e., rounding lat lon so that no doubling 
+    happens, making time series follow a calendar, etc."""
+    import xarray as xr
+    import numpy as np
+    
+        
+    data = ds[get_varnames(variable, params)].values
+    lats = np.round(ds[get_varnames('latitude', params)].values, 6)
+    lons = np.round(ds[get_varnames('longitude', params)].values, 6)
+    times = pd.date_range(params.begin_time, freq='MS', periods=len(ds['time']))
+    
+    if variable in ['air_temperature', 'eastward_wind', 'northward_wind']:
+        plevels = ds.coords[get_varnames('pressure_level', params)].values
+        return xr.Dataset({variable: (('time', 'plevel', 'lat', 'lon'), data)}, 
+                   coords={'time': times, 'plevel': plevels, 
+                           'lat': lats, 'lon': lons})
 
+    return xr.Dataset({variable: (('time', 'lat', 'lon'), data)}, 
+               coords={'time': times, 'lat': lats, 'lon': lons})
+
+def filename_loaded(variable, params, ensemble, plevel=None):
+    if plevel is not None:
+        return params.save_location + '_'.join([params.source, ensemble, variable, str(plevel)]) + '.nc'
+    else:
+        return params.save_location + '_'.join([params.source, ensemble, variable]) + '.nc'
+
+def compute_lts(params):
+    """Make a new dataset for lts based on the lts definition."""
+    import xarray as xr
+    for ensemble in params.ensembles():
+        if params.lts_type == 't850-t2m':
+            ds_top = xr.open_dataset(filename_loaded('air_temperature', 
+                                                     params, ensemble, 850))
+            
+            ds_bottom = xr.open_dataset(filename_loaded('2m_temperature', params, ensemble))
+        ds_top = ds_top.sortby(ds_top.time)
+        ds_bottom = ds_bottom.sortby(ds_bottom.time)
+        lts = ds_top['air_temperature'].values - ds_bottom['2m_temperature'].values
+        ds_lts = xr.Dataset({'lts': (('time', 'lat', 'lon'), lts.squeeze())}, 
+                   coords={'time': ds_bottom.time,
+                           'lat': ds_bottom['lat'].values,
+                           'lon': ds_bottom['lon'].values})
+        ds_top.close()
+        ds_bottom.close()
+        ds_lts.to_netcdf(filename_loaded('lts', params, ensemble)) # Add lts_type option here?
+
+
+    
+    
+    
+    
+    
+    
+    
