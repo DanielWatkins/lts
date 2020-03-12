@@ -186,6 +186,3 @@ def load_data(variable, params, plevel=None):
     
     
     
-    
-    
-    

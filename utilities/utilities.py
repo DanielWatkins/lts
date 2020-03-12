@@ -535,6 +535,7 @@ def clean_dataset(ds, variable, params):
                coords={'time': times, 'lat': lats, 'lon': lons})
 
 def filename_loaded(variable, params, ensemble, plevel=None):
+    """Convenience function to grab the filename of the cleaned and moved dataset."""
     if plevel is not None:
         return params.save_location + '_'.join([params.source, ensemble, variable, str(plevel)]) + '.nc'
     else:
@@ -561,9 +562,201 @@ def compute_lts(params):
         ds_lts.to_netcdf(filename_loaded('lts', params, ensemble)) # Add lts_type option here?
 
 
+def get_landmask(params):
+    """Loads and saves the land fraction dataset."""
+    import xarray as xr
+    import numpy as np
     
+    fname = util.get_filenames('land_area_fraction', params)[0]
+    with xr.open_dataset(fname) as lf:
+        ds_land = xr.Dataset({'land_area_fraction': (('lat', 'lon'), 
+                             lf[util.get_varnames('land_area_fraction', params)])}, 
+               coords={'lat': np.round(lf['lat'].values, 6),
+                       'lon': np.round(lf['lon'].values, 6)})
+
+        ds_land.sel(lat=slice(params.minimum_latitude, params.maximum_latitude),
+                    lon=slice(params.minimum_longitude,
+                             params.maximum_longitude)).to_netcdf(
+                             util.filename_loaded('land_area_fraction', params, '')) # Add lts_type 
     
+
+# Weight the months for a representatitive histogram.
+def get_month_weights(dataset, timevar, altseasons=False):
+    """Mostly copied directly from xarray's help docs. 
+    If altseasons, then group November in with winter."""
+    import xarray as xr
+    import numpy as np
     
+    dpm = {'noleap': [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           '365_day': [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           'standard': [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           'gregorian': [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           'proleptic_gregorian': [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           'all_leap': [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           '366_day': [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+           '360_day': [0, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30]}
+
+    def leap_year(year, calendar='standard'):
+        """Determine if year is a leap year"""
+        leap = False
+        if ((calendar in ['standard', 'gregorian',
+            'proleptic_gregorian', 'julian']) and
+            (year % 4 == 0)):
+            leap = True
+            if ((calendar == 'proleptic_gregorian') and
+                (year % 100 == 0) and
+                (year % 400 != 0)):
+                leap = False
+            elif ((calendar in ['standard', 'gregorian']) and
+                     (year % 100 == 0) and (year % 400 != 0) and
+                     (year < 1583)):
+                leap = False
+        return leap
+
+    def get_dpm(time, calendar='standard'):
+        """
+        return a array of days per month corresponding to the months provided in `months`
+        """
+        month_length = np.zeros(len(time), dtype=np.int)
+
+        cal_days = dpm[calendar]
+
+        for i, (month, year) in enumerate(zip(time.month, time.year)):
+            month_length[i] = cal_days[month]
+            if leap_year(year, calendar=calendar):
+                month_length[i] += 1
+        return month_length
+
+    month_length = xr.DataArray(get_dpm(dataset[timevar].to_index(), calendar='noleap'),
+                                coords=[dataset[timevar]], name='month_length')
+
+    if altseasons:
+        altseasons_list = []
+        for m in month_length.time.dt.month:
+            if m in [11, 12, 1, 2]:
+                altseasons_list.append('NDJF')
+            elif m in [3, 4, 5]:
+                altseasons_list.append('MAM')
+            elif m in [6, 7, 8]:
+                altseasons_list.append('JJA')
+            else:
+                altseasons_list.append('SO')
+
+        test = xr.DataArray(altseasons_list, coords=[month_length.time], 
+                            dims={'time':month_length.time.time})
+        test.name = 'season'
+        month_length = xr.concat(month_length, test)
+        weights = month_length.groupby('season') / month_length.groupby('season').sum()
+        return weights
+    
+    else:
+        weights = month_length.groupby(timevar + '.season') / month_length.groupby(timevar + '.season').sum()
+        return weights
+    
+def compute_histogram(data, bins, lat, lon, surface, land, ice):
+    """Compute weighted histogram values. Data is an array and has 
+    dimensions lat, lon. surface is a string: land, ocean_ice,
+    ocean, ice. land is the array with landfrac, and ice is an array with
+    the same dimensions as data."""
+    import numpy as np
+    
+    if surface == 'land':
+        fraction = land > 0.99
+        fraction = np.broadcast_to(fraction, data.shape)
+    elif surface == 'ocean_ice':
+        fraction = (1 - land) > 0.99
+        fraction = np.broadcast_to(fraction, data.shape)
+    elif surface == 'ocean':
+        fraction = (1 - (ice + land)) > 0.99
+    elif surface == 'ice':
+        fraction = ice > 0.15
+    elif surface == 'high_sic':
+        fraction = ice > 0.85
+    elif surface == 'low_sic':
+        fraction = (ice > 0.15) & (ice <= 0.85)
+    elif surface == 'north70':
+        fraction = np.zeros(data.size)
+        fraction[lat >= 70, :] = True
+    else:
+        print('Bad surface')
+        return
+    
+    w = np.broadcast_to(weights(lat, lon, np.min(lat)), data.shape)
+    w = w * fraction
+    w = w/w.sum()
+    x, y = np.histogram(np.ravel(data), weights=np.ravel(w), density=True, bins=bins)
+    return x
+
+
+def get_histograms(params_list, variable='lts', plevel=None, period='seasons', minimum_latitude=65, 
+                   surfaces=['ice', 'ocean_ice'], bins = np.arange(-20,30,1)):
+    """Computes the histograms for a variable over each ice surface for the chosen period.
+    Ice surface options include ice, ocean_ice (tested), or land, north70 (untested). Period can be
+    seasons, altseasons (november grouped with winter), or months. Bins default is set for lts."""
+    import warnings
+    import pandas as pd
+    import xarray as xr
+    
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore") 
+        # This is so we don't have to see the "mean of empty slice" error a million times.
+        
+        bin_centers = (bins[:-1] + bins[1:])/2
+        
+        if period == 'seasons':
+            periods = ['DJF', 'MAM', 'JJA', 'SON']
+            altseasons = False
+        elif period == 'altseasons':
+            periods = ['NDJF', 'MAM', 'JJA', 'SO']
+            altseasons = True
+        else:
+            periods = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+            numbers = np.arange(1, 13)
+            altseasons = False
+        results = {sfc: {timestep: {} for timestep in periods} for sfc in surfaces}
+
+        for params in params_list:
+            print(params.source)
+            temp_results = {sfc: {sn: {} for sn in periods} for sfc in surfaces}
+            ensembles = params.ensembles()
+            for surface in surfaces:
+                df = pd.DataFrame(columns=bin_centers,
+                                  index=ensembles)
+                for timestep in periods:
+                    for ens in ensembles:
+                        with xr.open_dataset(filename_loaded(variable, params, ens, plevel)) as ds_lts:
+                            with xr.open_dataset(filename_loaded('sea_ice_concentration', params, ens)) as ds_sic:
+                                ds_sic = ds_sic.sel(lat=slice(minimum_latitude, params.maximum_latitude))
+                                if not ('sea_ice_concentration' in ds_sic):
+                                    ds_sic.rename({'sic': 'sea_ice_concentration'}, inplace=True)
+
+                                ds_land = xr.open_dataset(filename_loaded('land_area_fraction', params, ''))
+                                ds_lts = ds_lts.sel(lat=slice(minimum_latitude, params.maximum_latitude))
+                                ds_land = ds_land.sel(lat=slice(minimum_latitude, params.maximum_latitude))
+
+                                mw = get_month_weights(ds_lts, 'time', altseasons=altseasons)
+                                if period == 'months':
+                                    #return numbers, timestep, mw.time.dt.month, periods
+                                    time_selection = mw.time.dt.month == numbers[np.array(periods) == timestep]
+                                else:
+                                    time_selection = mw.season == timestep
+                                df.loc[ens,:] = compute_histogram(
+                                        data=ds_lts[variable].loc[time_selection, :, :].values,
+                                        bins=bins,
+                                        lat=ds_lts['lat'].values,
+                                        lon=ds_lts['lon'].values,
+                                        surface=surface,
+                                        land=ds_land['land_area_fraction'],
+                                        ice=ds_sic['sea_ice_concentration'].loc[time_selection, :, :].values)
+
+                    temp_results[surface][timestep][params.source] = df.copy()
+                    df_cat = pd.concat(temp_results[surface][timestep], axis=0)
+                    if len(results[surface][timestep]) != 0:
+                        results[surface][timestep] = pd.concat([results[surface][timestep], df_cat.copy()], axis=0)
+                    else:
+                        results[surface][timestep] = df_cat
+        return results
+
     
     
     
