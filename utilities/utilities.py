@@ -5,6 +5,8 @@ organizing the model datasets (such as splitting large
 files into different years), and navigating differing 
 file names.
 
+I'd like to break this apart into a few files so that 
+the file is more single-purpose.
 """
 import numpy as np
 import os
@@ -20,8 +22,18 @@ def get_filenames(variable, params):
     """
     frequency = params.frequency
     ensemble_members = params.ensemble_members
+    if ensemble_members == 'random':
+        ensemble_size = params.ensemble_size
+        
     source = params.source
     varname = get_varnames(variable, params)
+    try:
+        np.isnan(varname)
+        print('Undefined variable ' + variable + 'for ' + source)
+        return
+    except:
+        pass
+    
     def get_cesmle_file_names(varname, params):
         """Reads filenames for cesm large ensemble from glade
         and returns as a master list."""
@@ -29,9 +41,10 @@ def get_filenames(variable, params):
         domain = 'atm' # Can add a step here when other variables become available
         model = 'cam'
         
-        if varname == 'ICEFRAC':
-            model = 'cice'
-
+#         if varname == 'ICEFRAC':
+#             model = 'cice'
+        freq = frequency
+        freq = 'monthly' # Don't have daily data yet
         assert freq == 'monthly', 'Frequency must be monthly, for now.'
 
         file_loc = '/'.join(['/glade/collections/cdg/data/cesmLE/CESM-CAM5-BGC-LE',
@@ -55,9 +68,14 @@ def get_filenames(variable, params):
         if ensemble_members == 'first':
             ensembles = [ensembles[0]]
         elif ensemble_members == 'random':
-            ensembles = [np.random.choice(ensembles, 1)]
-
-        
+            ensembles = np.random.choice(ensembles, ensemble_size)
+            if ensemble_size == 1:
+                ensembles = list(ensembles)
+        elif ensemble_members == 'all':
+            pass
+        else:
+            print('I don\'t know what you mean, using all ensemble members.')
+            
         flist = os.listdir(file_loc)
         files = []
         for ens in ensembles:
@@ -104,8 +122,20 @@ def get_filenames(variable, params):
         if ensemble_members == 'first':
             ensembles = [ensembles[0]]
         elif ensemble_members == 'random':
-            ensembles = [np.random.choice(ensembles, 1)]
-            
+            if ensemble_size == 1:
+                ensembles = list(np.random.choice(ensembles, ensemble_size))
+            if ensemble_size > len(ensembles):
+                print('Ensemble size greater than number of ' +
+                      'available ensemble members, using all ensemble members')
+                pass
+            else:
+                ensembles = np.random.choice(ensembles, ensemble_size)
+        elif ensemble_members == 'all':
+            pass
+        else:
+            print('I don\'t know what you mean, using all ensemble members instead.')
+
+                 
         flist = []
         for ens in ensembles:
             floc = '/'.join([file_loc, ens, dfreq,
@@ -143,14 +173,25 @@ def get_filenames(variable, params):
             
         file_loc = '/'.join(['/glade/collections/cmip/cmip5/output1',
                              model_group, model, 'historical', freq, domain, dfreq])
-        
-        
-        ensembles = os.listdir(file_loc) 
+        ensembles = os.listdir(file_loc)
+
         if ensemble_members == 'first':
             ensembles = [ensembles[0]]
         elif ensemble_members == 'random':
-            ensembles = [np.random.choice(ensembles, 1)]
-            
+            if ensemble_size == 1:
+                ensembles = list(np.random.choice(ensembles, ensemble_size))
+            if ensemble_size > len(ensembles):
+                print('Ensemble size greater than number of ' +
+                      'available ensemble members, using all ensemble members')
+                pass
+            else:
+                ensembles = np.random.choice(ensembles, ensemble_size)
+        elif ensemble_members == 'all':
+            pass
+        else:
+            print('I don\'t know what you mean, using all ensemble members instead.')
+
+
         flist = []
         for ens in ensembles:
             floc = '/'.join([file_loc, ens, 'latest', varname])
@@ -190,22 +231,24 @@ def get_varnames(variable, params):
     the corresponding variable in the source data if it exists.
     """
     
-    cesmle = {'latitude': 'LAT',
-              'longitude': 'LON',
-              'land_mask': 'LANDFRAC',
+    cesmle = {'latitude': 'lat',
+              'longitude': 'lon',
+              'land_area_fraction': 'LANDFRAC',
               'sea_ice_concentration': 'ICEFRAC',
               'sea_ice_thickness': 'SIT',
               'total_cloud_cover': 'CLDTOT',
               'low_cloud_fraction': 'CLDLOW',
               '2m_temperature': 'TREFHT',
               'air_temperature': 'T',
+              'pressure_level': 'lev',
               'sensible_heat_flux': 'SHFLX',
               'latent_heat_flux': 'LHFLX',
               '10m_wind_speed': 'U10',
               'sea_level_pressure': 'PSL',
-              'surface_downward_longwave': np.nan,
+              'surface_pressure': 'PS',
+              'surface_downward_longwave': 'FLDS',
               'surface_upward_longwave': np.nan,
-              'surface_downward_shortwave': np.nan,
+              'surface_downward_shortwave': 'FSDS',
               'surface_upward_shortwave': np.nan,
               'net_surface_longwave': 'FLNS',
               'net_surface_shortwave': 'FSNS',
@@ -226,7 +269,7 @@ def get_varnames(variable, params):
               'eastward_wind': 'ua',
               'ice_water_path': 'wlivi',
               'land_area_fraction': 'sftlf',
-              'latent_heat_flux': 'hfss',
+              'latent_heat_flux': 'hfls',
               'latitude': 'lat',
               'longitude': 'lon',
               'low_cloud_fraction': np.nan,
@@ -241,7 +284,7 @@ def get_varnames(variable, params):
               'sea_ice_concentration': 'siconca',
               'sea_ice_thickness': 'sithick',
               'sea_level_pressure': 'psl',
-              'sensible_heat_flux': 'hfls',
+              'sensible_heat_flux': 'hfss',
               'specific_humidity': 'hus',
               'surface_downward_longwave': 'rlds',
               'surface_downward_shortwave': 'rsds',
@@ -263,7 +306,7 @@ def get_varnames(variable, params):
               'eastward_wind': 'ua',
               'ice_water_path': 'wlivi',
               'land_area_fraction': 'sftlf',
-              'latent_heat_flux': 'hfss',
+              'latent_heat_flux': 'hfls',
               'latitude': 'lat',
               'longitude': 'lon',
               'low_cloud_fraction': np.nan,
@@ -278,7 +321,7 @@ def get_varnames(variable, params):
               'sea_ice_concentration': 'sic',
               'sea_ice_thickness': 'sit',
               'sea_level_pressure': 'psl',
-              'sensible_heat_flux': 'hfls',
+              'sensible_heat_flux': 'hfss',
               'specific_humidity': 'hus',
               'surface_downward_longwave': 'rlds',
               'surface_downward_shortwave': 'rsds',
@@ -418,6 +461,26 @@ def make_tempfile(variable, params):
     df = pd.DataFrame({'name':names, 'info':info})
     df.to_csv('data_for_gridding.tmp', index=False)
     
+    
+def ensemble_finder(fname, params):
+    """Pulls out the ensemble from the file name"""
+    def cmip_ensemble_finder(fname):
+        """Pulls out the ensemble from the file name"""
+        components = fname.split('/')[-1].split('_')
+        for comp in components:
+            if comp[0] == 'r':
+                if comp[1].isdigit():
+                    return comp
+
+    def cesmle_ensemble_finder(fname):
+        """Pulls out the ensemble from the file name"""
+        ensemble = fname.split('/')[-1].split('.')[4]
+        return ensemble
+    if params.source == 'cesm-le':
+        return cesmle_ensemble_finder(fname)
+    else:
+        return cmip_ensemble_finder(fname)
+
 def load_dataset(variable, params, subset_time=True, subset_latlon=True):
     """Loads dataset for <variable> based on time and lat/lon subsets from params.
     Currently can only subset latlon if the grid is rectilinear. Returns dictionary with 
@@ -430,18 +493,14 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
     import xarray as xr
     import pandas as pd
     
-    def ensemble_finder(fname):
-        """Pulls out the ensemble from the file name"""
-        components = fname.split('/')[-1].split('_')
-        for comp in components:
-            if comp[0] == 'r':
-                if comp[1].isdigit():
-                    return comp
-        
     def check_dates(fname, params):
         """Checks dates, assuming that the time range is given right before the .nc.
         Only takes year into account"""
-        daterng = fname.split('_')[-1].split('.')[0].split('-')
+        
+        if params.source == 'cesm-le':
+            daterng = fname.split('_')[-1].split('.')[-2].split('-')
+        else:
+            daterng = fname.split('_')[-1].split('.')[0].split('-')
         begin = int(daterng[0][0:4])
         end = int(daterng[1][0:4])
         begin_p = int(params.begin_time[0:4])
@@ -458,19 +517,19 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         fnames = params.filenames()[variable]
-        ensembles = [ensemble_finder(f) for f in fnames]
+        ensembles = [ensemble_finder(f, params) for f in fnames]
         fn_dict = {}
         if params.ensemble_members == 'first':
             ens = ensembles[0]
-#             if len(ensembles) > 1:
-#                 ens = ensembles[0]
-#             else:
-#                 ens = ensembles[0]
-            fnames = [f for f in fnames if (ensemble_finder(f)==ens) and check_dates(f, params)]
+            fnames = [f for f in fnames if (ensemble_finder(f, params)==ens) and check_dates(f, params)]
             fn_dict[ens] = fnames
         elif params.ensemble_members == 'all':
             for ens in ensembles:
-                fnames_ens = [f for f in fnames if (ensemble_finder(f)==ens) and check_dates(f, params)]
+                fnames_ens = [f for f in fnames if (ensemble_finder(f, params)==ens) and check_dates(f, params)]
+                fn_dict[ens] = fnames_ens
+        elif params.ensemble_members == 'random':
+            for ens in ensembles:
+                fnames_ens = [f for f in fnames if (ensemble_finder(f, params)==ens) and check_dates(f, params)]
                 fn_dict[ens] = fnames_ens
         # later: random option?
         else:
@@ -483,31 +542,52 @@ def load_dataset(variable, params, subset_time=True, subset_latlon=True):
 
         ds_dict = {}
         for ens in fn_dict:
+            print('Loading ensemble member ' + ens)
             ds_list = []
             for fname in fn_dict[ens]:
-                dsx = clean_dataset(xr.open_dataset(fname), variable, params)
-                
-                if subset_time and subset_latlon:
-                    ds = dsx.sel(
-                            time=slice(params.begin_time, params.end_time),
-                            lat=slice(params.minimum_latitude, params.maximum_latitude),
-                            lon=slice(params.minimum_longitude, params.maximum_longitude))
-                    ds.load()
-                elif subset_time:
-                    ds = dsx.sel(
-                            time=slice(params.begin_time, params.end_time))
-                    ds.load()
-                elif subset_latlon:
-                    ds = dsx.sel(
-                            lat=slice(params.minimum_latitude, params.maximum_latitude),
-                            lon=slice(params.minimum_longitude, params.maximum_longitude))
-                    ds.load()
-                ds_list.append(ds)
-                dsx.close()
-                if len(ds.time) == len(pd.date_range(params.begin_time, params.end_time, freq='1MS')):
-                    break
+                if not ((params.source == 'cesm-le') & (variable == 'air_temperature')): 
+                    # add other 3d variables somehow
+                    # For the cmip5 and cmip6 data, we subset and "clean" the dataset
+                    print('cleaning ' + fname)
+                    dsx = clean_dataset(xr.open_dataset(fname), variable, params)
+
+                    if subset_time and subset_latlon:
+                        ds = dsx.sel(
+                                time=slice(params.begin_time, params.end_time),
+                                lat=slice(params.minimum_latitude, 
+                                          params.maximum_latitude),
+                                lon=slice(params.minimum_longitude, 
+                                          params.maximum_longitude))
+                        ds.load()
+                    elif subset_time:
+                        ds = dsx.sel(
+                                time=slice(params.begin_time, params.end_time))
+                        ds.load()
+                    elif subset_latlon:
+                        ds = dsx.sel(
+                                lat=slice(params.minimum_latitude, params.maximum_latitude),
+                                lon=slice(params.minimum_longitude, params.maximum_longitude))
+                        ds.load()
+                    ds_list.append(ds)
+                    dsx.close()
+                    if len(ds.time) == len(pd.date_range(params.begin_time, params.end_time, freq='1MS')):
+                        break
+                        del ds
                     del ds
-                del ds
+                else:
+                    # Only does the 850 layer right now
+                    
+                    varname = get_varnames(variable, params)
+                    suffix = '.'.join(fname.split('.')[-2:])
+                    fname_p = '/glade/collections/cdg/data/cesmLE/CESM-CAM5-BGC-LE/atm/proc/tseries/monthly/PS/b.e11.B20TRC5CNBDRD.f09_g16.' + ens + '.cam.h0.PS.' + suffix
+                    ds = vinth2p_cesm(in_file_var=fname,
+                                      in_file_pvar=fname_p,
+                                      min_lat=params.minimum_latitude,
+                                      max_lat=params.maximum_latitude,
+                                      p_levels=[850],
+                                      time_range=(params.begin_time, params.end_time),
+                                      newvar_name=variable)
+                    ds_list.append(ds)
             ds_dict[ens] = xr.concat(ds_list, dim='time')
         return ds_dict
     
@@ -567,17 +647,17 @@ def get_landmask(params):
     import xarray as xr
     import numpy as np
     
-    fname = util.get_filenames('land_area_fraction', params)[0]
+    fname = get_filenames('land_area_fraction', params)[0]
     with xr.open_dataset(fname) as lf:
         ds_land = xr.Dataset({'land_area_fraction': (('lat', 'lon'), 
-                             lf[util.get_varnames('land_area_fraction', params)])}, 
+                             lf[get_varnames('land_area_fraction', params)])}, 
                coords={'lat': np.round(lf['lat'].values, 6),
                        'lon': np.round(lf['lon'].values, 6)})
 
         ds_land.sel(lat=slice(params.minimum_latitude, params.maximum_latitude),
                     lon=slice(params.minimum_longitude,
                              params.maximum_longitude)).to_netcdf(
-                             util.filename_loaded('land_area_fraction', params, '')) # Add lts_type 
+                             filename_loaded('land_area_fraction', params, '')) # Add lts_type 
     
 
 # Weight the months for a representatitive histogram.
@@ -729,7 +809,7 @@ def get_histograms(params_list, variable='lts', plevel=None, period='seasons', m
                                 ds_sic = ds_sic.sel(lat=slice(minimum_latitude, params.maximum_latitude))
                                 if not ('sea_ice_concentration' in ds_sic):
                                     ds_sic.rename({'sic': 'sea_ice_concentration'}, inplace=True)
-
+                                # TODO: fix the cesm1 sea ice thing so the name is right
                                 ds_land = xr.open_dataset(filename_loaded('land_area_fraction', params, ''))
                                 ds_lts = ds_lts.sel(lat=slice(minimum_latitude, params.maximum_latitude))
                                 ds_land = ds_land.sel(lat=slice(minimum_latitude, params.maximum_latitude))
@@ -757,7 +837,94 @@ def get_histograms(params_list, variable='lts', plevel=None, period='seasons', m
                         results[surface][timestep] = df_cat
         return results
 
+def vinth2p_cesm(in_file_var, in_file_pvar, **kwargs):
+    """Interpolate CESM data from hybrid coordinates to standard
+    pressure coordinates. This code is a thin wrapper for the vinth2p function
+    from Ngl, which itself is based on the vinth2p function in NCL.
+    
+    in_file_var is the filename of the variable to be interpolated.
+    in_file_press is the filename of the pressure data (either PS or PSL).
+    out_file is the filename where the data should be written.
+    
+    Optional inputs:
+    min_lat: minimum latitude to include in the output 
+    max_lat: maximum latitude to include in the output
+    p_levels: levels to interpolate to
+    time_range: date range in form (string date, string date)
+    newvar_name: name for variable
+    """
+
+    import netCDF4 as nc
+    import Ngl
+    import numpy as np
+    import xarray as xr
+    
+    ds_var = xr.open_dataset(in_file_var)
+    ds_p = xr.open_dataset(in_file_pvar)
+    # Get the names of the variables
+    pvar = in_file_pvar.split('.')[-3]
+    var = in_file_var.split('.')[-3]
+    
+    # Handle optional arguments
+    if 'min_lat' in kwargs:
+        min_lat = kwargs['min_lat']
+    else:
+        min_lat = -90.
+        
+    if 'max_lat' in kwargs:
+        max_lat = kwargs['max_lat']
+    else:
+        max_lat = 90.0
+        
+    if 'min_lon' in kwargs:
+        min_lon = kwargs['min_lon']
+    else:
+        min_lon = 0.
+        
+    if 'max_lon' in kwargs:
+        max_lon = kwargs['max_lon']
+    else:
+        max_lon = 360.0
+        
+    if 'time_range' in kwargs:
+        begin_time, end_time = kwargs['time_range']
+    else:
+        begin_time = ds_var.time[0].values
+        end_time = ds_var.time[-1].values
+    
+    if 'p_levels' in kwargs:
+        p_levels = kwargs['p_levels']
+    else:
+        # Use WMO mandatory pressure levels
+        p_levels = np.array([1000, 925, 850, 700, 500, 400, 
+                             300, 250, 200, 150, 100, 70, 
+                             50, 30, 20, 10, 7, 5, 3, 2, 1])
     
     
+    var_interp = Ngl.vinth2p(
+                    datai=ds_var.sel(
+                        time=slice(begin_time, end_time),
+                        lat=slice(min_lat, max_lat),
+                        lon=slice(min_lon, max_lon)
+                        ).variables[var].values, 
+                    hbcofa=ds_var.variables['hyam'].values, 
+                    hbcofb=ds_var.variables['hybm'].values, 
+                    plevo=p_levels, 
+                    psfc=ds_p.sel(
+                        time=slice(begin_time, end_time),
+                        lat=slice(min_lat, max_lat),
+                        lon=slice(min_lon, max_lon)
+                        ).variables[pvar].values, 
+                    intyp=2, 
+                    p0=ds_var.variables['P0'].values/100., 
+                    ii=1, 
+                    kxtrp=True)
     
-    
+    ds = xr.Dataset({var: (('time', 'lev', 'lat', 'lon'), var_interp)},
+                    coords={'time': ds_var.sel(
+                        time=slice(begin_time, end_time)).variables['time'].values,
+                           'lat': ds_var.lat.values[ds_var.lat.values >= min_lat],
+                           'lon': ds_var.lon.values,
+                           'lev': p_levels})
+    return ds
+#    ds.to_netcdf(out_file)

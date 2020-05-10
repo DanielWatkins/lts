@@ -68,15 +68,7 @@ class Parameters:
         for key in fnames:
             break
         fnames = fnames[key]
-        
-        def ensemble_finder(fname):
-            """Pulls out the ensemble from the file name"""
-            components = fname.split('/')[-1].split('_')
-            for comp in components:
-                if comp[0] == 'r':
-                    if comp[1].isdigit():
-                        return comp
-        return list(np.unique([ensemble_finder(f) for f in fnames]))
+        return list(np.unique([util.ensemble_finder(f, self) for f in fnames]))
         
         
         
@@ -152,18 +144,27 @@ def get_data(params):
             subset_latlon=True
 
         ds_dict = util.load_dataset(variable, params, subset_latlon=subset_latlon)
-        
         # either here or within load_dataset, remake dataset to have matching names
         
         for ens in ds_dict:
             
             if variable in ['air_temperature', 'eastward_wind', 'northward_wind']:
-                for plevel in params.pressure_levels:
-                    fn = '_'.join([params.source, ens, variable, str(plevel)])
-                    ds = ds_dict[ens].sel(plevel=plevel*100).drop('plevel')
+                
+                if params.source == 'cesm-le':
+                    print('Can only fetch data at 850 mb pressure level')
+                    fn = '_'.join([params.source, ens, variable, str(850)])
+                    ds = ds_dict[ens].sel(lev=850).drop('lev')
                     ds = ds.sortby(ds.time)
                     ds.to_netcdf(
-                params.save_location + fn + '.nc')
+                    params.save_location + fn + '.nc')
+
+                else:
+                    for plevel in params.pressure_levels:
+                        fn = '_'.join([params.source, ens, variable, str(plevel)])
+                        ds = ds_dict[ens].sel(plevel=plevel*100).drop('plevel')
+                        ds = ds.sortby(ds.time)
+                        ds.to_netcdf(
+                    params.save_location + fn + '.nc')
             else:        
                 fn = '_'.join([params.source, ens, variable])
                 ds = ds_dict[ens].sortby(ds_dict[ens].time)
